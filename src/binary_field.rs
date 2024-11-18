@@ -1,37 +1,41 @@
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
-pub trait BinaryFieldPoly<const N: usize> {
-    fn get_poly<'a>() -> &'a [bool; N];
+pub trait BinaryFieldPoly {
+    const N: usize;
+    
+    fn get_poly<'a>() -> &'a [bool];
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct BinaryField<const N: usize, P: BinaryFieldPoly<N>> {
-    pub data: [bool; N],
+pub struct BinaryField<P: BinaryFieldPoly> {
+    pub data: Vec<bool>,
     pub marker: PhantomData<P>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AESPoly;
-impl BinaryFieldPoly<8> for AESPoly {
-    fn get_poly<'a>() -> &'a [bool; 8] {
+impl BinaryFieldPoly for AESPoly {
+    const N: usize = 8;
+    
+    fn get_poly<'a>() -> &'a [bool] {
         &[false, false, false, true, true, false, true, true]
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> Default for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> Default for BinaryField<P> {
     fn default() -> Self {
         Self {
-            data: [false; N],
+            data: vec![false; P::N],
             marker: PhantomData,
         }
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> From<u8> for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> From<u8> for BinaryField<P> {
     fn from(mut value: u8) -> Self {
-        assert!(N >= 8);
-        let mut res = BinaryField::<N, P>::default();
+        assert!(P::N >= 8);
+        let mut res = BinaryField::<P>::default();
         for i in 0..8 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -40,10 +44,10 @@ impl<const N: usize, P: BinaryFieldPoly<N>> From<u8> for BinaryField<N, P> {
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> From<u16> for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> From<u16> for BinaryField<P> {
     fn from(mut value: u16) -> Self {
-        assert!(N >= 16);
-        let mut res = BinaryField::<N, P>::default();
+        assert!(P::N >= 16);
+        let mut res = BinaryField::<P>::default();
         for i in 0..16 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -52,10 +56,10 @@ impl<const N: usize, P: BinaryFieldPoly<N>> From<u16> for BinaryField<N, P> {
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> From<u32> for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> From<u32> for BinaryField<P> {
     fn from(mut value: u32) -> Self {
-        assert!(N >= 32);
-        let mut res = BinaryField::<N, P>::default();
+        assert!(P::N >= 32);
+        let mut res = BinaryField::<P>::default();
         for i in 0..32 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -64,10 +68,10 @@ impl<const N: usize, P: BinaryFieldPoly<N>> From<u32> for BinaryField<N, P> {
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> From<u64> for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> From<u64> for BinaryField<P> {
     fn from(mut value: u64) -> Self {
-        assert!(N >= 64);
-        let mut res = BinaryField::<N, P>::default();
+        assert!(P::N >= 64);
+        let mut res = BinaryField::<P>::default();
         for i in 0..64 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -76,10 +80,10 @@ impl<const N: usize, P: BinaryFieldPoly<N>> From<u64> for BinaryField<N, P> {
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> From<u128> for BinaryField<N, P> {
+impl<P: BinaryFieldPoly> From<u128> for BinaryField<P> {
     fn from(mut value: u128) -> Self {
-        assert!(N >= 128);
-        let mut res = BinaryField::<N, P>::default();
+        assert!(P::N >= 128);
+        let mut res = BinaryField::<P>::default();
         for i in 0..128 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -88,71 +92,71 @@ impl<const N: usize, P: BinaryFieldPoly<N>> From<u128> for BinaryField<N, P> {
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> Add<&BinaryField<N, P>> for &BinaryField<N, P> {
-    type Output = BinaryField<N, P>;
+impl<P: BinaryFieldPoly> Add<&BinaryField<P>> for &BinaryField<P> {
+    type Output = BinaryField<P>;
 
-    fn add(self, rhs: &BinaryField<N, P>) -> BinaryField<N, P> {
-        let mut res = BinaryField::<N, P>::default();
-        for i in 0..N {
+    fn add(self, rhs: &BinaryField<P>) -> BinaryField<P> {
+        let mut res = BinaryField::<P>::default();
+        for i in 0..P::N {
             res.data[i] = self.data[i] ^ rhs.data[i];
         }
         res
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> AddAssign<&BinaryField<N, P>> for BinaryField<N, P> {
-    fn add_assign(&mut self, rhs: &BinaryField<N, P>) {
-        for i in 0..N {
+impl<P: BinaryFieldPoly> AddAssign<&BinaryField<P>> for BinaryField<P> {
+    fn add_assign(&mut self, rhs: &BinaryField<P>) {
+        for i in 0..P::N {
             self.data[i] ^= rhs.data[i];
         }
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> Sub<&BinaryField<N, P>> for &BinaryField<N, P> {
-    type Output = BinaryField<N, P>;
+impl<P: BinaryFieldPoly> Sub<&BinaryField<P>> for &BinaryField<P> {
+    type Output = BinaryField<P>;
 
-    fn sub(self, rhs: &BinaryField<N, P>) -> Self::Output {
+    fn sub(self, rhs: &BinaryField<P>) -> Self::Output {
         self.add(rhs)
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> SubAssign<&BinaryField<N, P>> for BinaryField<N, P> {
-    fn sub_assign(&mut self, rhs: &BinaryField<N, P>) {
+impl<P: BinaryFieldPoly> SubAssign<&BinaryField<P>> for BinaryField<P> {
+    fn sub_assign(&mut self, rhs: &BinaryField<P>) {
         self.add_assign(rhs)
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> Mul<&BinaryField<N, P>> for &BinaryField<N, P> {
-    type Output = BinaryField<N, P>;
+impl<P: BinaryFieldPoly> Mul<&BinaryField<P>> for &BinaryField<P> {
+    type Output = BinaryField<P>;
 
-    fn mul(self, rhs: &BinaryField<N, P>) -> Self::Output {
-        let mut temp = vec![false; 2 * N - 1];
-        for i in 0..N {
-            for j in 0..N {
+    fn mul(self, rhs: &BinaryField<P>) -> Self::Output {
+        let mut temp = vec![false; 2 * P::N - 1];
+        for i in 0..P::N {
+            for j in 0..P::N {
                 temp[i + j] ^= self.data[i] & rhs.data[j];
             }
         }
 
         let poly = P::get_poly();
 
-        for i in (N..(2 * N - 1)).rev() {
+        for i in (P::N..(2 * P::N - 1)).rev() {
             if temp[i] {
                 temp[i] = false;
-                for j in 0..N {
+                for j in 0..P::N {
                     temp[i - 1 - j] ^= poly[j];
                 }
             }
         }
 
-        BinaryField::<N, P> {
-            data: temp[0..N].try_into().unwrap(),
+        BinaryField::<P> {
+            data: temp[0..P::N].try_into().unwrap(),
             marker: PhantomData,
         }
     }
 }
 
-impl<const N: usize, P: BinaryFieldPoly<N>> MulAssign<&BinaryField<N, P>> for BinaryField<N, P> {
-    fn mul_assign(&mut self, rhs: &BinaryField<N, P>) {
+impl<P: BinaryFieldPoly> MulAssign<&BinaryField<P>> for BinaryField<P> {
+    fn mul_assign(&mut self, rhs: &BinaryField<P>) {
         *self = self.mul(rhs);
     }
 }
@@ -194,11 +198,11 @@ mod test {
 
             let expected = reference_implementation(a, b);
 
-            let a_bf = BinaryField::<8, AESPoly>::from(a);
-            let b_bf = BinaryField::<8, AESPoly>::from(b);
+            let a_bf = BinaryField::<AESPoly>::from(a);
+            let b_bf = BinaryField::<AESPoly>::from(b);
 
             let result = a_bf.mul(&b_bf);
-            let expected_bf = BinaryField::<8, AESPoly>::from(expected);
+            let expected_bf = BinaryField::<AESPoly>::from(expected);
             assert_eq!(result, expected_bf);
         }
     }
