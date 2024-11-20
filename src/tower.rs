@@ -1,4 +1,5 @@
 use crate::binary_field::{BinaryField, BinaryFieldConfig};
+use rand::Rng;
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
@@ -25,12 +26,32 @@ impl<F: BinaryFieldConfig> Ring<F> {
     }
 }
 
+impl<F: BinaryFieldConfig> Ring<F> {
+    pub fn random<R: Rng>(l: usize, rng: &mut R) -> Self {
+        let mut elements = vec![];
+        for _ in 0..l {
+            elements.push(rng.gen());
+        }
+        Ring { elements }
+    }
+
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
+    pub fn one() -> Self {
+        let mut res = Self::default();
+        res.elements[0] = BinaryField::<F>::one();
+        res
+    }
+}
+
 impl<F: BinaryFieldConfig> Add<&Ring<F>> for &Ring<F> {
     type Output = Ring<F>;
 
     fn add(self, rhs: &Ring<F>) -> Self::Output {
         let mut res = self.elements.clone();
-        res.reserve(rhs.elements.len());
+        res.resize(rhs.elements.len(), BinaryField::<F>::zero());
         for i in 0..rhs.elements.len() {
             res[i] += &rhs.elements[i];
         }

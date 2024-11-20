@@ -1,8 +1,11 @@
+use rand::distributions::Standard;
+use rand::prelude::Distribution;
+use rand::Rng;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
-pub trait BinaryFieldConfig: Clone + Debug {
+pub trait BinaryFieldConfig: Clone + Debug + PartialEq + Eq {
     const N: usize;
 
     fn get_poly<'a>() -> &'a [bool];
@@ -11,12 +14,12 @@ pub trait BinaryFieldConfig: Clone + Debug {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct BinaryField<P: BinaryFieldConfig> {
+pub struct BinaryField<F: BinaryFieldConfig> {
     pub data: Vec<bool>,
-    pub marker: PhantomData<P>,
+    pub marker: PhantomData<F>,
 }
 
-impl<P: BinaryFieldConfig> Debug for BinaryField<P> {
+impl<F: BinaryFieldConfig> Debug for BinaryField<F> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
     }
@@ -50,19 +53,31 @@ impl BinaryFieldConfig for F2 {
     }
 }
 
-impl<P: BinaryFieldConfig> Default for BinaryField<P> {
+impl<F: BinaryFieldConfig> BinaryField<F> {
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
+    pub fn one() -> Self {
+        let mut res = Self::default();
+        res.data[0] = true;
+        res
+    }
+}
+
+impl<F: BinaryFieldConfig> Default for BinaryField<F> {
     fn default() -> Self {
         Self {
-            data: vec![false; P::N],
+            data: vec![false; F::N],
             marker: PhantomData,
         }
     }
 }
 
-impl<P: BinaryFieldConfig> From<u8> for BinaryField<P> {
+impl<F: BinaryFieldConfig> From<u8> for BinaryField<F> {
     fn from(mut value: u8) -> Self {
-        assert!(P::N >= 8);
-        let mut res = BinaryField::<P>::default();
+        assert!(F::N >= 8);
+        let mut res = BinaryField::<F>::default();
         for i in 0..8 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -71,10 +86,10 @@ impl<P: BinaryFieldConfig> From<u8> for BinaryField<P> {
     }
 }
 
-impl<P: BinaryFieldConfig> From<u16> for BinaryField<P> {
+impl<F: BinaryFieldConfig> From<u16> for BinaryField<F> {
     fn from(mut value: u16) -> Self {
-        assert!(P::N >= 16);
-        let mut res = BinaryField::<P>::default();
+        assert!(F::N >= 16);
+        let mut res = BinaryField::<F>::default();
         for i in 0..16 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -83,10 +98,10 @@ impl<P: BinaryFieldConfig> From<u16> for BinaryField<P> {
     }
 }
 
-impl<P: BinaryFieldConfig> From<u32> for BinaryField<P> {
+impl<F: BinaryFieldConfig> From<u32> for BinaryField<F> {
     fn from(mut value: u32) -> Self {
-        assert!(P::N >= 32);
-        let mut res = BinaryField::<P>::default();
+        assert!(F::N >= 32);
+        let mut res = BinaryField::<F>::default();
         for i in 0..32 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -95,10 +110,10 @@ impl<P: BinaryFieldConfig> From<u32> for BinaryField<P> {
     }
 }
 
-impl<P: BinaryFieldConfig> From<u64> for BinaryField<P> {
+impl<F: BinaryFieldConfig> From<u64> for BinaryField<F> {
     fn from(mut value: u64) -> Self {
-        assert!(P::N >= 64);
-        let mut res = BinaryField::<P>::default();
+        assert!(F::N >= 64);
+        let mut res = BinaryField::<F>::default();
         for i in 0..64 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -107,10 +122,10 @@ impl<P: BinaryFieldConfig> From<u64> for BinaryField<P> {
     }
 }
 
-impl<P: BinaryFieldConfig> From<u128> for BinaryField<P> {
+impl<F: BinaryFieldConfig> From<u128> for BinaryField<F> {
     fn from(mut value: u128) -> Self {
-        assert!(P::N >= 128);
-        let mut res = BinaryField::<P>::default();
+        assert!(F::N >= 128);
+        let mut res = BinaryField::<F>::default();
         for i in 0..128 {
             res.data[i] = value & 1 == 1;
             value >>= 1;
@@ -119,82 +134,103 @@ impl<P: BinaryFieldConfig> From<u128> for BinaryField<P> {
     }
 }
 
-impl<P: BinaryFieldConfig> Add<&BinaryField<P>> for &BinaryField<P> {
-    type Output = BinaryField<P>;
+impl<F: BinaryFieldConfig> Add<&BinaryField<F>> for &BinaryField<F> {
+    type Output = BinaryField<F>;
 
-    fn add(self, rhs: &BinaryField<P>) -> BinaryField<P> {
-        let mut res = BinaryField::<P>::default();
-        for i in 0..P::N {
+    fn add(self, rhs: &BinaryField<F>) -> BinaryField<F> {
+        let mut res = BinaryField::<F>::default();
+        for i in 0..F::N {
             res.data[i] = self.data[i] ^ rhs.data[i];
         }
         res
     }
 }
 
-impl<P: BinaryFieldConfig> AddAssign<&BinaryField<P>> for BinaryField<P> {
-    fn add_assign(&mut self, rhs: &BinaryField<P>) {
-        for i in 0..P::N {
+impl<F: BinaryFieldConfig> Add<BinaryField<F>> for BinaryField<F> {
+    type Output = BinaryField<F>;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        &self + &rhs
+    }
+}
+
+impl<F: BinaryFieldConfig> AddAssign<&BinaryField<F>> for BinaryField<F> {
+    fn add_assign(&mut self, rhs: &BinaryField<F>) {
+        for i in 0..F::N {
             self.data[i] ^= rhs.data[i];
         }
     }
 }
 
-impl<P: BinaryFieldConfig> Sub<&BinaryField<P>> for &BinaryField<P> {
-    type Output = BinaryField<P>;
+impl<F: BinaryFieldConfig> Sub<&BinaryField<F>> for &BinaryField<F> {
+    type Output = BinaryField<F>;
 
-    fn sub(self, rhs: &BinaryField<P>) -> Self::Output {
+    fn sub(self, rhs: &BinaryField<F>) -> Self::Output {
         self.add(rhs)
     }
 }
 
-impl<P: BinaryFieldConfig> SubAssign<&BinaryField<P>> for BinaryField<P> {
-    fn sub_assign(&mut self, rhs: &BinaryField<P>) {
+impl<F: BinaryFieldConfig> SubAssign<&BinaryField<F>> for BinaryField<F> {
+    fn sub_assign(&mut self, rhs: &BinaryField<F>) {
         self.add_assign(rhs)
     }
 }
 
-impl<P: BinaryFieldConfig> Mul<&BinaryField<P>> for &BinaryField<P> {
-    type Output = BinaryField<P>;
+impl<F: BinaryFieldConfig> Mul<&BinaryField<F>> for &BinaryField<F> {
+    type Output = BinaryField<F>;
 
-    fn mul(self, rhs: &BinaryField<P>) -> Self::Output {
-        let mut temp = vec![false; 2 * P::N - 1];
-        for i in 0..P::N {
-            for j in 0..P::N {
+    fn mul(self, rhs: &BinaryField<F>) -> Self::Output {
+        let mut temp = vec![false; 2 * F::N - 1];
+        for i in 0..F::N {
+            for j in 0..F::N {
                 temp[i + j] ^= self.data[i] & rhs.data[j];
             }
         }
 
-        let poly = P::get_poly();
+        let poly = F::get_poly();
 
-        for i in (P::N..(2 * P::N - 1)).rev() {
+        for i in (F::N..(2 * F::N - 1)).rev() {
             if temp[i] {
                 temp[i] = false;
-                for j in 0..P::N {
+                for j in 0..F::N {
                     temp[i - 1 - j] ^= poly[j];
                 }
             }
         }
 
-        BinaryField::<P> {
-            data: temp[0..P::N].try_into().unwrap(),
+        BinaryField::<F> {
+            data: temp[0..F::N].try_into().unwrap(),
             marker: PhantomData,
         }
     }
 }
 
-impl<P: BinaryFieldConfig> MulAssign<&BinaryField<P>> for BinaryField<P> {
-    fn mul_assign(&mut self, rhs: &BinaryField<P>) {
-        *self = self.mul(rhs);
+impl<F: BinaryFieldConfig> MulAssign<&BinaryField<F>> for BinaryField<F> {
+    fn mul_assign(&mut self, rhs: &BinaryField<F>) {
+        *self = (self as &Self).mul(rhs);
     }
 }
 
-impl<P: BinaryFieldConfig> BinaryField<P> {
-    pub fn mul_by_imag_unit(&self) -> BinaryField<P> {
-        let imag_unit = BinaryField::<P> {
-            data: P::get_imag_unit().to_vec(),
+impl<F: BinaryFieldConfig> BinaryField<F> {
+    pub fn mul_by_imag_unit(&self) -> BinaryField<F> {
+        let imag_unit = BinaryField::<F> {
+            data: F::get_imag_unit().to_vec(),
             marker: PhantomData,
         };
         self * &imag_unit
+    }
+}
+
+impl<F: BinaryFieldConfig> Distribution<BinaryField<F>> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> BinaryField<F> {
+        let mut data = vec![];
+        for _ in 0..F::N {
+            data.push(rng.gen());
+        }
+        BinaryField::<F> {
+            data,
+            marker: PhantomData,
+        }
     }
 }
 
