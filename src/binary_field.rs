@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
@@ -6,12 +6,20 @@ pub trait BinaryFieldConfig: Clone + Debug {
     const N: usize;
 
     fn get_poly<'a>() -> &'a [bool];
+
+    fn get_imag_unit<'a>() -> &'a [bool];
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct BinaryField<P: BinaryFieldConfig> {
     pub data: Vec<bool>,
     pub marker: PhantomData<P>,
+}
+
+impl<P: BinaryFieldConfig> Debug for BinaryField<P> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.data.fmt(f)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,6 +30,10 @@ impl BinaryFieldConfig for AESPoly {
     fn get_poly<'a>() -> &'a [bool] {
         &[false, false, false, true, true, false, true, true]
     }
+
+    fn get_imag_unit<'a>() -> &'a [bool] {
+        &[true, true, false, false, true, false, true, true]
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -31,6 +43,10 @@ impl BinaryFieldConfig for F2 {
 
     fn get_poly<'a>() -> &'a [bool] {
         &[false]
+    }
+
+    fn get_imag_unit<'a>() -> &'a [bool] {
+        &[true]
     }
 }
 
@@ -169,6 +185,16 @@ impl<P: BinaryFieldConfig> Mul<&BinaryField<P>> for &BinaryField<P> {
 impl<P: BinaryFieldConfig> MulAssign<&BinaryField<P>> for BinaryField<P> {
     fn mul_assign(&mut self, rhs: &BinaryField<P>) {
         *self = self.mul(rhs);
+    }
+}
+
+impl<P: BinaryFieldConfig> BinaryField<P> {
+    pub fn mul_by_imag_unit(&self) -> BinaryField<P> {
+        let imag_unit = BinaryField::<P> {
+            data: P::get_imag_unit().to_vec(),
+            marker: PhantomData,
+        };
+        self * &imag_unit
     }
 }
 
